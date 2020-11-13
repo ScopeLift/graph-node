@@ -8,8 +8,9 @@ use graph::{
     prelude::{
         self,
         web3::types::{Address, H256},
-        BlockNumber, DynTryFuture, Error, EthereumBlockPointer, EthereumCallCache,
-        Store as StoreTrait, SubgraphDeploymentId, SubgraphDeploymentStore, PRIMARY_SHARD,
+        BlockNumber, DynTryFuture, Error, EthereumBlockPointer, EthereumCallCache, NodeId,
+        Store as StoreTrait, SubgraphDeploymentEntity, SubgraphDeploymentId,
+        SubgraphDeploymentStore, SubgraphVersionSwitchingMode, PRIMARY_SHARD,
     },
 };
 use prelude::{
@@ -62,6 +63,22 @@ impl ShardedStore {
         self.stores
             .get(&shard)
             .ok_or(StoreError::UnknownShard(shard))
+    }
+
+    // Only for tests to simplify their handling of test fixtures, so that
+    // tests can reset the block pointer of a subgraph by recreating it
+    #[cfg(debug_assertions)]
+    pub fn create_deployment_replace(
+        &self,
+        name: SubgraphName,
+        schema: &Schema,
+        deployment: SubgraphDeploymentEntity,
+        node_id: NodeId,
+        mode: SubgraphVersionSwitchingMode,
+    ) -> Result<(), StoreError> {
+        // This works because we only allow one shard for now
+        self.primary
+            .create_deployment_replace(name, schema, deployment, node_id, mode)
     }
 }
 
@@ -328,7 +345,6 @@ impl ShardData for MetadataOperation {
             Set { entity, .. } | Remove { entity, .. } | Update { entity, .. } => {
                 entity.in_shard(id)
             }
-            AbortUnless { metadata_type, .. } => metadata_type.in_shard(id),
         }
     }
 }
