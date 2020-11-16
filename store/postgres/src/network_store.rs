@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use graph::prelude::{
-    anyhow, ethabi,
-    web3::types::{Address, H256},
-    BlockNumber, ChainHeadUpdateStream, ChainStore as ChainStoreTrait, CheapClone, Error,
-    EthereumBlock, EthereumBlockPointer, EthereumCallCache, Future, LightEthereumBlock, NodeId,
-    Schema, Store as StoreTrait, StoreError, Stream, SubgraphDeploymentEntity,
-    SubgraphDeploymentId, SubgraphDeploymentStore, SubgraphName, SubgraphVersionSwitchingMode,
+use graph::{
+    data::subgraph::schema::SubgraphError,
+    prelude::{
+        anyhow, ethabi,
+        web3::types::{Address, H256},
+        BlockNumber, ChainHeadUpdateStream, ChainStore as ChainStoreTrait, CheapClone, Error,
+        EthereumBlock, EthereumBlockPointer, EthereumCallCache, Future, LightEthereumBlock, NodeId,
+        Schema, Store as StoreTrait, StoreError, Stream, SubgraphDeploymentEntity,
+        SubgraphDeploymentId, SubgraphDeploymentStore, SubgraphName, SubgraphVersionSwitchingMode,
+    },
 };
 
 use crate::chain_store::ChainStore;
@@ -48,6 +51,7 @@ impl NetworkStore {
     }
 }
 
+#[async_trait::async_trait]
 impl StoreTrait for NetworkStore {
     fn block_ptr(
         &self,
@@ -167,6 +171,14 @@ impl StoreTrait for NetworkStore {
         id: graph::prelude::SubgraphDeploymentId,
     ) -> Result<graph::prelude::DeploymentState, graph::prelude::StoreError> {
         self.store.deployment_state_from_id(id)
+    }
+
+    async fn fail_subgraph(
+        &self,
+        id: SubgraphDeploymentId,
+        error: SubgraphError,
+    ) -> Result<(), anyhow::Error> {
+        self.store.fail_subgraph(id, error).await
     }
 
     fn create_subgraph_deployment(
