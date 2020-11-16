@@ -1614,7 +1614,6 @@ dependencies = [
 name = "graph-node"
 version = "0.19.2"
 dependencies = [
- "anyhow",
  "assert_cli",
  "clap",
  "crossbeam-channel 0.4.4",
@@ -1639,7 +1638,6 @@ dependencies = [
  "prometheus",
  "regex",
  "serde",
- "serde_json",
  "serde_regex",
  "shellexpand",
  "structopt",
