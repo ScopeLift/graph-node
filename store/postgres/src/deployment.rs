@@ -1,9 +1,12 @@
 //! Utilities for dealing with deployment metadata. Any connection passed
 //! into these methods must be for the shard that holds the actual
 //! deployment data and metadata
-use diesel::dsl::{sql, update};
 use diesel::pg::PgConnection;
 use diesel::prelude::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
+use diesel::{
+    connection::SimpleConnection,
+    dsl::{sql, update},
+};
 use graph::data::subgraph::schema::{SubgraphManifestEntity, SUBGRAPHS_ID};
 use graph::prelude::{
     bigdecimal::ToPrimitive, format_err, web3::types::H256, BigDecimal, BlockNumber,
@@ -429,4 +432,13 @@ pub fn unfail(conn: &PgConnection, id: &SubgraphDeploymentId) -> Result<(), Stor
     ))
     .execute(conn)?;
     Ok(())
+}
+
+/// Drop the schema for `subgraph`. This deletes all data for the subgraph,
+/// and can not be reversed. It does not remove any of the metadata in
+/// `subgraphs.entities` associated with the subgraph
+#[cfg(debug_assertions)]
+pub fn drop_entities(conn: &diesel::pg::PgConnection, schema: &str) -> Result<(), StoreError> {
+    let query = format!("drop schema if exists {} cascade", schema);
+    Ok(conn.batch_execute(&*query)?)
 }
