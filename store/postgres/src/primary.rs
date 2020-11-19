@@ -34,7 +34,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{block_range::UNVERSIONED_RANGE, notification_listener::JsonNotification};
+use crate::{
+    block_range::UNVERSIONED_RANGE, notification_listener::JsonNotification, sharded_store::Shard,
+};
 
 #[cfg(debug_assertions)]
 lazy_static! {
@@ -127,7 +129,7 @@ pub struct Site {
     /// The subgraph deployment
     pub deployment: SubgraphDeploymentId,
     /// The name of the database shard
-    pub shard: String,
+    pub shard: Shard,
     /// The database namespace (schema) that holds the data for the deployment
     pub namespace: String,
 }
@@ -135,7 +137,7 @@ pub struct Site {
 impl Site {
     /// A site that can be used to access the metadata subgraph in the given
     /// shard
-    pub fn meta(shard: String) -> Self {
+    pub fn meta(shard: Shard) -> Self {
         Site {
             deployment: SUBGRAPHS_ID.clone(),
             namespace: SUBGRAPHS_ID.to_string(),
@@ -150,11 +152,11 @@ impl TryFrom<Schema> for Site {
     fn try_from(schema: Schema) -> Result<Self, Self::Error> {
         let deployment = SubgraphDeploymentId::new(schema.subgraph)
             .map_err(|s| StoreError::ConstraintViolation(format!("Invalid deployment id {}", s)))?;
-
+        let shard = Shard::new(schema.shard)?;
         Ok(Self {
             deployment,
             namespace: schema.name,
-            shard: schema.shard,
+            shard,
         })
     }
 }
@@ -487,7 +489,7 @@ impl Connection {
 
     pub fn allocate_site(
         &self,
-        shard: String,
+        shard: Shard,
         subgraph: &SubgraphDeploymentId,
     ) -> Result<Site, StoreError> {
         use deployment_schemas as ds;
@@ -503,7 +505,7 @@ impl Connection {
         let schemas: Vec<String> = diesel::insert_into(ds::table)
             .values((
                 ds::subgraph.eq(subgraph.as_str()),
-                ds::shard.eq(&shard),
+                ds::shard.eq(shard.as_str()),
                 ds::version.eq(v::Relational),
             ))
             .returning(ds::name)
@@ -533,11 +535,7 @@ impl Connection {
                 )));
             }
         }
-        Ok(schema.map(|schema| Site {
-            deployment: subgraph.clone(),
-            namespace: schema.name,
-            shard: schema.shard,
-        }))
+        schema.map(|schema| schema.try_into()).transpose()
     }
 
     pub fn find_existing_site(&self, subgraph: &SubgraphDeploymentId) -> Result<Site, StoreError> {
