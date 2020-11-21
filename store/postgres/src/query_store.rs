@@ -26,6 +26,7 @@ impl QueryStore {
     }
 }
 
+#[async_trait]
 impl QueryStoreTrait for QueryStore {
     fn find_query_values(
         &self,
@@ -61,5 +62,17 @@ impl QueryStoreTrait for QueryStore {
         block_hash: H256,
     ) -> Result<Option<BlockNumber>, StoreError> {
         self.store.block_number(subgraph_id, block_hash)
+    }
+
+    async fn has_non_fatal_errors(
+        &self,
+        id: SubgraphDeploymentId,
+        block: Option<BlockNumber>,
+    ) -> Result<bool, anyhow::Error> {
+        self.store
+            .with_conn(move |conn, _| {
+                crate::metadata::has_non_fatal_errors(conn, &id, block).map_err(|e| e.into())
+            })
+            .await
     }
 }

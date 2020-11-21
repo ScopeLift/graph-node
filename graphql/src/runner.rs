@@ -134,7 +134,7 @@ where
         // Unwrap: There is always at least one block constraint, even if it
         // is an implicit 'BlockContraint::Latest'.
         let mut by_block_constraint = query.block_constraint()?.into_iter();
-        let (bc, selection_set) = by_block_constraint.next().unwrap();
+        let (bc, (selection_set, error_policy)) = by_block_constraint.next().unwrap();
 
         // We need to use the same `QueryStore` for the entire query to ensure
         // we have a consistent view if the world, even when replicas, which
@@ -150,6 +150,7 @@ where
             &self.logger,
             store.cheap_clone(),
             bc,
+            error_policy,
             query.schema.id().clone(),
         )
         .await?;
@@ -160,11 +161,12 @@ where
         // cloning the result. If there are multiple constraints we have to clone.
         if by_block_constraint.len() > 0 {
             let mut partial_res = result.as_ref().clone();
-            for (bc, selection_set) in by_block_constraint {
+            for (bc, (selection_set, error_policy)) in by_block_constraint {
                 let resolver = StoreResolver::at_block(
                     &self.logger,
                     store.cheap_clone(),
                     bc,
+                    error_policy,
                     query.schema.id().clone(),
                 )
                 .await?;

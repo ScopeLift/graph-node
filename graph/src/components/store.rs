@@ -1282,6 +1282,7 @@ pub trait EthereumCallCache: Send + Sync + 'static {
 }
 
 /// Store operations used when serving queries
+#[async_trait]
 pub trait QueryStore: Send + Sync {
     fn find_query_values(
         &self,
@@ -1302,6 +1303,13 @@ pub trait QueryStore: Send + Sync {
         subgraph_id: &SubgraphDeploymentId,
         block_hash: H256,
     ) -> Result<Option<BlockNumber>, StoreError>;
+
+    /// If `block` is `None`, assumes the latest block.
+    async fn has_non_fatal_errors(
+        &self,
+        id: SubgraphDeploymentId,
+        block: Option<BlockNumber>,
+    ) -> Result<bool, anyhow::Error>;
 }
 
 /// An entity operation that can be transacted into the store; as opposed to
